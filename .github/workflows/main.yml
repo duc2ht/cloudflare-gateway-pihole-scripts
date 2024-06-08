@@ -16,21 +16,21 @@ env:
   NODE_ENV: production
 
 jobs:
-  cgps:
+  update-filter-lists:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           repository: "mrrfv/cloudflare-gateway-pihole-scripts"
           ref: "v1"
 
-      - name: Install Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
 
-      - name: Install npm dependencies
+      - name: Install dependencies
         run: npm ci
 
       - name: Download recommended whitelist
@@ -43,7 +43,7 @@ jobs:
         env:
           BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
 
-      - name: Delete old rules and lists
+      - name: Clean up old rules and lists
         run: |
           node cf_gateway_rule_delete.js
           node cf_list_delete.js
@@ -66,8 +66,115 @@ jobs:
           FAST_MODE: ${{ vars.FAST_MODE }}
 
       - name: Send ping request
-        if: env.PING_URL != ''
-        run: |
-          curl "${{ env.PING_URL }}"
+        if: ${{ secrets.PING_URL != '' }}
+        run: curl "${{ secrets.PING_URL }}"
+
+  retry1:
+    needs: update-filter-lists
+    runs-on: ubuntu-latest
+    if: needs.update-filter-lists.result == 'failure'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: "mrrfv/cloudflare-gateway-pihole-scripts"
+          ref: "v1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download recommended whitelist
+        run: bash ./get_recommended_whitelist.sh
         env:
-          PING_URL: ${{ secrets.PING_URL }}
+          ALLOWLIST_URLS: ${{ vars.ALLOWLIST_URLS }}
+
+      - name: Download recommended filters
+        run: bash ./get_recommended_filters.sh
+        env:
+          BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
+
+      - name: Clean up old rules and lists
+        run: |
+          node cf_gateway_rule_delete.js
+          node cf_list_delete.js
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_LIST_ITEM_LIMIT: ${{ secrets.CLOUDFLARE_LIST_ITEM_LIMIT }}
+          FAST_MODE: ${{ vars.FAST_MODE }}
+
+      - name: Create new rules and lists
+        run: |
+          node cf_list_create.js
+          node cf_gateway_rule_create.js
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_LIST_ITEM_LIMIT: ${{ secrets.CLOUDFLARE_LIST_ITEM_LIMIT }}
+          FAST_MODE: ${{ vars.FAST_MODE }}
+
+      - name: Send ping request
+        if: ${{ secrets.PING_URL != '' }}
+        run: curl "${{ secrets.PING_URL }}"
+
+  retry2:
+    needs: retry1
+    runs-on: ubuntu-latest
+    if: needs.retry1.result == 'failure'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: "mrrfv/cloudflare-gateway-pihole-scripts"
+          ref: "v1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download recommended whitelist
+        run: bash ./get_recommended_whitelist.sh
+        env:
+          ALLOWLIST_URLS: ${{ vars.ALLOWLIST_URLS }}
+
+      - name: Download recommended filters
+        run: bash ./get_recommended_filters.sh
+        env:
+          BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
+
+      - name: Clean up old rules and lists
+        run: |
+          node cf_gateway_rule_delete.js
+          node cf_list_delete.js
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_LIST_ITEM_LIMIT: ${{ secrets.CLOUDFLARE_LIST_ITEM_LIMIT }}
+          FAST_MODE: ${{ vars.FAST_MODE }}
+
+      - name: Create new rules and lists
+        run: |
+          node cf_list_create.js
+          node cf_gateway_rule_create.js
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_LIST_ITEM_LIMIT: ${{ secrets.CLOUDFLARE_LIST_ITEM_LIMIT }}
+          FAST_MODE: ${{ vars.FAST_MODE }}
+
+      - name: Send ping request
+        if: ${{ secrets.PING_URL != '' }}
+        run: curl "${{ secrets.PING_URL }}"
