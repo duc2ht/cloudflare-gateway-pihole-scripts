@@ -16,21 +16,21 @@ env:
   NODE_ENV: production
 
 jobs:
-  update-filter-lists:
+  cgps:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           repository: "mrrfv/cloudflare-gateway-pihole-scripts"
           ref: "v1"
 
-      - name: Set up Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Download recommended whitelist
@@ -43,7 +43,7 @@ jobs:
         env:
           BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
 
-      - name: Clean up old rules and lists
+      - name: Delete old rules and lists
         run: |
           node cf_gateway_rule_delete.js
           node cf_list_delete.js
@@ -66,26 +66,29 @@ jobs:
           FAST_MODE: ${{ vars.FAST_MODE }}
 
       - name: Send ping request
-        if: ${{ secrets.PING_URL != '' }}
-        run: curl "${{ secrets.PING_URL }}"
+        if: env.PING_URL != ''
+        run: |
+          curl "${{ env.PING_URL }}"
+        env:
+          PING_URL: ${{ secrets.PING_URL }}
 
   retry1:
-    needs: update-filter-lists
+    needs: cgps
     runs-on: ubuntu-latest
-    if: needs.update-filter-lists.result == 'failure'
+    if: needs.cgps.result == 'failure'
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           repository: "mrrfv/cloudflare-gateway-pihole-scripts"
           ref: "v1"
 
-      - name: Set up Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Download recommended whitelist
@@ -98,7 +101,7 @@ jobs:
         env:
           BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
 
-      - name: Clean up old rules and lists
+      - name: Delete old rules and lists
         run: |
           node cf_gateway_rule_delete.js
           node cf_list_delete.js
@@ -121,26 +124,29 @@ jobs:
           FAST_MODE: ${{ vars.FAST_MODE }}
 
       - name: Send ping request
-        if: ${{ secrets.PING_URL != '' }}
-        run: curl "${{ secrets.PING_URL }}"
+        if: env.PING_URL != ''
+        run: |
+          curl "${{ env.PING_URL }}"
+        env:
+          PING_URL: ${{ secrets.PING_URL }}
 
   retry2:
     needs: retry1
     runs-on: ubuntu-latest
     if: needs.retry1.result == 'failure'
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           repository: "mrrfv/cloudflare-gateway-pihole-scripts"
           ref: "v1"
 
-      - name: Set up Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Download recommended whitelist
@@ -153,7 +159,7 @@ jobs:
         env:
           BLOCKLIST_URLS: ${{ vars.BLOCKLIST_URLS }}
 
-      - name: Clean up old rules and lists
+      - name: Delete old rules and lists
         run: |
           node cf_gateway_rule_delete.js
           node cf_list_delete.js
@@ -176,5 +182,8 @@ jobs:
           FAST_MODE: ${{ vars.FAST_MODE }}
 
       - name: Send ping request
-        if: ${{ secrets.PING_URL != '' }}
-        run: curl "${{ secrets.PING_URL }}"
+        if: env.PING_URL != ''
+        run: |
+          curl "${{ env.PING_URL }}"
+        env:
+          PING_URL: ${{ secrets.PING_URL }}
